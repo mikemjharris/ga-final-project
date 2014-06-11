@@ -16,6 +16,8 @@
     "socket.io": "~0.9.6",
     "passport": "*",
     "passport-twitter": "*",
-    "express-session": "*"
+    "express-session": "*",
+     "mongodb": "*",
+    "mongoskin": "*"
   }
 }

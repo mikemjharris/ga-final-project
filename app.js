@@ -4,11 +4,48 @@ var favicon = require('static-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+var session = require('express-session');
+var user = []
+var passport = require('passport')
+var TwitterStrategy = require('passport-twitter').Strategy;
+
+//database setup
+var mongo = require('mongoskin');
+var port = process.env.PORT || 3000;
+var mongoUri = process.env.MONGOLAB_URI || "mongodb://localhost:27017/mikenode4";
+var db = mongo.db( mongoUri  , {native_parser:true} );
+
+
+passport.serializeUser(function(user, done) {
+  done(null, user);
+});
+
+passport.deserializeUser(function(user, done) {
+  done(null, user);
+});
+
+passport.use(new TwitterStrategy({
+    consumerKey: process.env.AUTH_TWITTER_NODE_GAME_KEY,
+    consumerSecret: process.env.AUTH_TWITTER_NODE_GAME_SECRET,
+    callbackURL: process.env.AUTH_TWITTER_NODE_GAME_CALLBACK
+  },
+  function(token, tokenSecret, profile, done) {
+    user = profile;
+    session.profile = profile
+    done(null, profile._json);
+    // User.findOrCreate(..., function(err, user) {
+      // if (err) { return done(err); }
+      // done(null, user);
+    // });
+  }
+));
 
 var routes = require('./routes/index');
 var users = require('./routes/users');
 
 var app = express();
+
+
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -21,8 +58,36 @@ app.use(bodyParser.urlencoded());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.use(session({secret: '1234567890QWERTY'}));
+app.use(passport.initialize());
+app.use(passport.session());
+
+
+app.get('/auth/twitter', passport.authenticate('twitter'));
+
+app.get('/auth/twitter/callback', 
+  passport.authenticate('twitter', { successRedirect: '/',
+                                     failureRedirect: '/login' }));
+
+app.get('/logout', function (req, res){
+  req.session.destroy(function (err) {
+    res.redirect('/'); //Inside a callback… bulletproof!
+  });
+});
+
+
+app.use(function(req,res,next){
+    req.db = db;
+    next();
+});
+
+
+
+
 app.use('/', routes);
 app.use('/users', users);
+
+
 
 /// catch 404 and forward to error handler
 app.use(function(req, res, next) {
